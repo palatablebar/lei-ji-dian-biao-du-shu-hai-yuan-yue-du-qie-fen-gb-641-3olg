@@ -40,12 +40,17 @@ def group_by_key(records: list[dict]) -> dict[tuple, list[dict]]:
 
 
 def split_conflicts(records: list[dict]) -> tuple[list[dict], list[dict], list[dict]]:
-    """同键多行：取值不同 → 全部隔离；取值相同 → 留最早一行，其余合并并留痕。"""
+    """同键多行：取值不同 → 全部隔离；取值相同 → 留最早一行，其余合并并留痕。
+
+    多来源包下不同文件的原始行号会重复，同键相同取值的多行可能来自多个终端：
+    「最早」先按来源顺序、再按行号；合并时把各来源并入 `source_ids`，
+    这样复核仍能看到这段数据其实两个终端都给过。
+    """
     keep: list[dict] = []
     conflicted: list[dict] = []
     merged: list[dict] = []
     for items in group_by_key(records).values():
-        items.sort(key=lambda item: item["lineno"])
+        items.sort(key=lambda item: (item.get("source_id") or "", item["lineno"]))
         if len(items) == 1:
             keep.append(items[0])
             continue
@@ -54,10 +59,17 @@ def split_conflicts(records: list[dict]) -> tuple[list[dict], list[dict], list[d
             for item in items:
                 conflicted.append({**item, "_conflict_values": sorted(str(v) for v in values)})
         else:
-            keep.append(items[0])
+            winner = items[0]
+            sources = list(winner.get("source_ids") or
+                           ([winner["source_id"]] if winner.get("source_id") else []))
             for item in items[1:]:
-                merged.append({**item, "_merged_into": items[0]["lineno"]})
-    keep.sort(key=lambda item: item["lineno"])
+                for ident in item.get("source_ids") or (
+                        [item["source_id"]] if item.get("source_id") else []):
+                    if ident not in sources:
+                        sources.append(ident)
+                merged.append({**item, "_merged_into": winner["lineno"]})
+            keep.append({**winner, "source_ids": sources})
+    keep.sort(key=lambda item: (item.get("source_id") or "", item["lineno"]))
     return keep, conflicted, merged
 
 

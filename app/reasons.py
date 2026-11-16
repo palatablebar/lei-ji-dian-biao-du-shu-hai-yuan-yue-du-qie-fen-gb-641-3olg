@@ -16,6 +16,10 @@ REASONS: dict[str, dict[str, str]] = {
     "E_SAMPLE_UNKNOWN": {"label": "样例不存在", "level": "error"},
     "E_CONTRACT_INVALID": {"label": "表计契约无效", "level": "error"},
     "E_BATCH_NOT_FOUND": {"label": "批次不存在", "level": "error"},
+    "E_NO_USABLE_SOURCE": {"label": "整包没有可采信来源", "level": "error"},
+    "E_SOURCE_NOT_IN_PACKAGE": {"label": "来源不在该批次", "level": "error"},
+    "E_PUBLISH_FAILED": {"label": "发布失败，保留上一版", "level": "error"},
+    "E_VERSION_NOT_FOUND": {"label": "版本不存在", "level": "error"},
     "Q_COLUMN_COUNT": {"label": "列数与表头不一致", "level": "error"},
     "Q_TRUNCATED_ROW": {"label": "末行被截断", "level": "error"},
     "Q_MISSING_READING": {"label": "读数为空值哨兵", "level": "error"},
@@ -30,6 +34,7 @@ REASONS: dict[str, dict[str, str]] = {
     "Q_REVERSE_READING": {"label": "读数倒走", "level": "error"},
     "Q_DUPLICATE_CONFLICT": {"label": "同键读数不一致", "level": "error"},
     "Q_METER_RETIRED": {"label": "抄表晚于换表时点", "level": "warn"},
+    "Q_SOURCE_OUT_OF_SCOPE": {"label": "补件行超出该来源范围", "level": "error"},
     "K_ROLLOVER": {"label": "满量翻转已还原", "level": "info"},
     "K_REPLACEMENT_FIRST": {"label": "新表首读起算", "level": "info"},
     "K_ESTIMATE_SKIPPED": {"label": "估抄不作锚点", "level": "info"},
@@ -42,6 +47,8 @@ REASONS: dict[str, dict[str, str]] = {
     "K_UNIT_ASSUMED": {"label": "单位按契约补齐", "level": "info"},
     "K_UNIT_CONVERTED": {"label": "单位已折算", "level": "info"},
     "K_DUPLICATE_IDENTICAL": {"label": "重复行已合并", "level": "info"},
+    "K_COVERAGE_GAP": {"label": "表计缺源文件", "level": "warn"},
+    "K_CROSS_SOURCE_ANCHOR": {"label": "区间两端来自不同来源", "level": "info"},
 }
 
 

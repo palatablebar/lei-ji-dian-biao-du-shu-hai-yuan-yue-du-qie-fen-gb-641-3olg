@@ -17,6 +17,7 @@ from ..m2_contract import service as m2_service
 from ..m3_quality import service as m3_service
 from ..m4_intervals import restore as restore_mod
 from ..m5_months import allocate as allocate_mod
+from ..m8_package import coverage as coverage_mod
 from . import compare, history, resume
 
 
@@ -118,6 +119,7 @@ def run(settings, store, *, sample: str | None = None, mode: str = "full") -> di
     # ---- M6 对账 ----
     mark = time.perf_counter()
     quarantine = ingested.quarantine + contract_q + quality["quarantine"]
+    sources = [{"source_id": None, "filename": name, "label": name}]
     month_usage = allocated["stats"]["usage_total"]
     bill_total = sum((bill["amount_yuan"] for bill in allocated["bills"]), Decimal("0"))
     component_total = sum(
@@ -147,6 +149,11 @@ def run(settings, store, *, sample: str | None = None, mode: str = "full") -> di
 
     finished_at = history.iso(history.now_utc())
     elapsed_ms = _ms(t0)
+    # 单文件样例没有终端拆分，但覆盖口径与多来源包一致：没交数据的契约表计同样算「缺源」
+    coverage_rows = coverage_mod.build(contracts, quality["valid"],
+                                       quality["estimate"], quarantine,
+                                       intervals, sources)
+    coverage_summary = coverage_mod.summarise(coverage_rows)
     totals = {
         "raw_lines": ingested.data_lines,
         "valid": len(quality["valid"]),
@@ -165,13 +172,21 @@ def run(settings, store, *, sample: str | None = None, mode: str = "full") -> di
         "segments": ingested.segments,
         "encoding": ingested.encoding,
         "balanced": "是" if reconcile["all_balanced"] else "否",
+        "source_count": 1,
+        "source_accepted": 1,
+        "source_partial": 0,
+        "source_rejected": 0,
+        "coverage_missing": coverage_summary["by_status"].get("missing", 0),
+        "coverage_gaps": coverage_summary["needs_attention"],
+        "missing_sources": 0,
         "reconcile_json": json.dumps(reconcile, ensure_ascii=False, default=str),
     }
     manifest_json = manifest.build(
         run_id=batch["run_id"], batch_id=batch_id, batch_key_value=key,
         settings=settings, sample=name, digest=digest,
         inputs=[{"name": name, "sha256": ingested.digest,
-                 "bytes": ingested.byte_len, "encoding": ingested.encoding},
+                 "bytes": ingested.byte_len, "encoding": ingested.encoding,
+                 "source_id": None, "status": config.SNAPSHOT_ACCEPTED},
                 {"name": config.METERS_FILE,
                  "sha256": manifest.digest_bytes(meters_bytes),
                  "bytes": len(meters_bytes), "encoding": "utf-8"},
@@ -186,6 +201,18 @@ def run(settings, store, *, sample: str | None = None, mode: str = "full") -> di
             intervals=len(intervals), allocations=len(allocated["allocations"]),
             bills=len(allocated["bills"])),
         reconcile=reconcile)
+    manifest_json["package"] = {
+        "package_id": None, "version_no": None, "reason": mode,
+        "sources": [{"source_id": None, "label": name, "filename": name,
+                     "status": config.SNAPSHOT_ACCEPTED,
+                     "sha256": ingested.digest, "byte_len": ingested.byte_len,
+                     "encoding": ingested.encoding,
+                     "data_lines": ingested.data_lines,
+                     "parsed_lines": len(ingested.rows),
+                     "quarantine_count": len(ingested.quarantine)}],
+        "missing_expected_sources": [],
+        "coverage": coverage_rows,
+    }
 
     readings_rows = [{
         "lineno": item["lineno"], "segment": item["segment"],
@@ -195,6 +222,8 @@ def run(settings, store, *, sample: str | None = None, mode: str = "full") -> di
         "unit_norm": item["unit_norm"], "read_type": item["read_type"],
         "status": "estimate" if item["read_type"] == "E" else "valid",
         "code": None, "flags": item.get("flags", []), "note": item.get("note", ""),
+        "source_id": None, "source_name": name, "snapshot_id": None,
+        "source_ids": [],
     } for item in (quality["valid"] + quality["estimate"])]
 
     store.save_run(
@@ -213,7 +242,8 @@ def run(settings, store, *, sample: str | None = None, mode: str = "full") -> di
         quarantine=quarantine,
         stages=stages,
         totals=totals,
-        manifest_json=manifest_json)
+        manifest_json=manifest_json,
+        coverage=coverage_rows)
 
     batch.update(status="done", finished_at=finished_at)
     return {

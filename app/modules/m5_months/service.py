@@ -17,6 +17,7 @@ def intervals_from_store(rows: list[dict]) -> list[dict]:
         "end_at": row["end_at"],
         "usage_kwh": Decimal(str(row["usage_kwh"])),
         "days": Decimal(str(row["days"])),
+        "source_ids": list(row.get("source_ids") or []),
     } for row in rows]
 
 
@@ -83,6 +84,7 @@ def payload(allocations: list[dict], bills: list[dict],
             "exact_share": str(item["exact_share"]),
             "tou_adjusted": item["tou_adjusted"],
             "register_label": config.REGISTER_LABELS.get(item["register"], item["register"]),
+            "source_ids": list(item.get("source_ids") or []),
         } for item in allocations],
         "bills": [{
             "month": bill["month"],

@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block body %}
+<section class="page-head">
+  <div>
+    <h1 class="page-title">来源追溯</h1>
+    <p class="page-meta mono">
+      {% if batch %}{{ batch.batch_id }}{% if package_block.version_no %} · 版本 v{{ package_block.version_no }}{% endif %}
+      · {{ (package_block.sources|length) if package_block.sources else 0 }} 个来源
+      {% else %}未运行{% endif %}
+    </p>
+  </div>
+  <div class="actions">
+    <a class="btn btn-ghost" href="/api/coverage">覆盖接口</a>
+    <a class="btn btn-ghost" href="/api/export/manifest.json">运行清单</a>
+  </div>
+</section>
+
+<div class="notice" id="notice" role="status" hidden></div>
+
+{% if not batch %}
+<section class="empty"><p class="empty-line">还没有批次，先发布一个版本。</p></section>
+{% else %}
+<section class="kpis" aria-label="覆盖合计">
+  <div class="kpi"><span class="kpi-label">表计</span><span class="kpi-value mono">{{ summary.total }}</span></div>
+  <div class="kpi"><span class="kpi-label">已覆盖</span><span class="kpi-value mono">{{ summary.by_status.covered or 0 }}</span></div>
+  <div class="kpi"><span class="kpi-label">仅一锚点</span><span class="kpi-value mono">{{ summary.by_status.single_reading or 0 }}</span></div>
+  <div class="kpi"><span class="kpi-label">只有隔离行</span><span class="kpi-value mono">{{ summary.by_status.quarantined_only or 0 }}</span></div>
+  <div class="kpi"><span class="kpi-label">缺源文件</span><span class="kpi-value mono">{{ summary.by_status.missing or 0 }}</span></div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title">本版来源</h2>
+    <span class="panel-sub mono">每段数据都可追到下面某个快照</span>
+  </div>
+  {% if package_block.sources %}
+  <div class="table-wrap">
+    <table class="table table-dense">
+      <thead><tr><th>来源</th><th>文件</th><th>状态</th><th>原因码</th><th class="num">行数</th>
+        <th class="num">隔离</th><th>编码</th><th>sha256</th><th>快照</th></tr></thead>
+      <tbody>
+        {% for item in package_block.sources %}
+        <tr>
+          <td class="mono">{{ item.source_id }}</td>
+          <td class="mono">{{ item.label or item.filename }}</td>
+          <td><span class="badge badge-{{ 'bad' if item.status == 'rejected' else ('warn' if item.status == 'partial' else 'ok') }}">{{ item.status|status }}</span></td>
+          <td class="mono">{{ item.ingest_code or '—' }}</td>
+          <td class="num mono">{{ item.parsed_lines }}/{{ item.data_lines }}</td>
+          <td class="num mono">{{ item.quarantine_count }}</td>
+          <td class="mono">{{ item.encoding or '—' }}</td>
+          <td class="mono cell-raw" title="{{ item.sha256 }}">{{ item.sha256[:12] }}</td>
+          <td class="mono">{{ item.snapshot_id }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-line">这个批次来自单文件样例，没有多来源快照。</p>
+  {% endif %}
+  {% if package_block.missing_expected_sources %}
+  <div class="chips">
+    {% for item in package_block.missing_expected_sources %}
+    <span class="chip chip-warn mono">缺 {{ item.filename }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title">表计覆盖</h2>
+    <span class="panel-sub mono">需关注 {{ summary.needs_attention }} 只</span>
+  </div>
+  <div class="table-wrap">
+    <table class="table table-dense">
+      <thead><tr><th>表号</th><th>名称</th><th>状态</th><th class="num">有效</th><th class="num">区间</th>
+        <th>来源</th><th>说明</th></tr></thead>
+      <tbody>
+        {% for row in coverage %}
+        <tr>
+          <td class="mono">{{ row.meter_id }}</td>
+          <td>{{ row.name }}</td>
+          <td><span class="badge badge-{{ 'ok' if row.status == 'covered' else ('bad' if row.status == 'missing' else 'warn') }}">{{ coverage_labels.get(row.status, row.status) }}</span></td>
+          <td class="num mono">{{ row.valid_readings }}</td>
+          <td class="num mono">{{ row.interval_count }}</td>
+          <td class="mono cell-raw">{{ row.sources|join('、') or '—' }}</td>
+          <td class="cell-note">{{ row.detail }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title">区间来源</h2>
+    <span class="panel-sub mono">{{ intervals|length }} 段 · 两端来源不同会标 K_CROSS_SOURCE_ANCHOR</span>
+  </div>
+  <div class="table-wrap">
+    <table class="table table-dense">
+      <thead><tr><th>区间号</th><th>表号</th><th>寄存器</th><th>起</th><th>止</th>
+        <th class="num">用量</th><th>上次来源</th><th>本次来源</th><th>判定</th><th>标记</th></tr></thead>
+      <tbody>
+        {% for row in intervals %}
+        <tr>
+          <td class="mono">{{ row.interval_id }}</td>
+          <td class="mono">{{ row.meter_id }}</td>
+          <td>{{ row.register|reg }}</td>
+          <td class="mono">{{ row.start_at|localdt }}</td>
+          <td class="mono">{{ row.end_at|localdt }}</td>
+          <td class="num mono">{{ row.usage_kwh|kwh }}</td>
+          <td class="mono">{{ row.prev_source_id or '—' }}</td>
+          <td class="mono">{{ row.cur_source_id or '—' }}</td>
+          <td>{{ row.method|method }}</td>
+          <td class="cell-flags mono">{% for flag in row.flags %}<span class="chip chip-{{ 'warn' if flag == 'K_CROSS_SOURCE_ANCHOR' else 'info' }}">{{ flag }}</span>{% endfor %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="/static/app.js" type="module"></script>
+<script src="/static/table.js" type="module"></script>
+{% endblock %}

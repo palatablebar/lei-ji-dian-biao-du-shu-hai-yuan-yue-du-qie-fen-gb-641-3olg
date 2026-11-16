@@ -23,6 +23,8 @@ NAV = (
     ("/intervals", "区间还原", "intervals"),
     ("/months", "月度分摊", "months"),
     ("/batches", "批次对账", "batches"),
+    ("/packages", "来源采信", "packages"),
+    ("/sources", "来源追溯", "sources"),
     ("/export", "导出", "export"),
 )
 
@@ -31,6 +33,11 @@ STATUS_LABELS = {
     "valid": "有效", "estimate": "估抄", "quarantine": "隔离",
     "normal": "常规", "rollover": "满量翻转", "replacement_first": "新表首读",
     "replacement_last": "换表末读", "ok": "就绪", "skipped": "跳过",
+    "accepted": "可采信", "rejected": "文件级拒绝",
+    "published": "已发布", "superseded": "已被替代", "collecting": "收件中",
+    "retired": "已作废", "active": "参与中",
+    "covered": "已覆盖", "single_reading": "仅一锚点",
+    "quarantined_only": "只有隔离行", "missing": "缺源文件",
 }
 METHOD_LABELS = {
     "normal": "常规", "rollover": "满量翻转",

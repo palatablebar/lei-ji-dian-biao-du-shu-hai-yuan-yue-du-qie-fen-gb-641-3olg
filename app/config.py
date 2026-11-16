@@ -58,6 +58,22 @@ STAGE_LABELS = {
 }
 STAGE_FLOW = "采信 → 契约 → 质量 → 还原 → 切分 → 对账 → 导出"
 
+# 多来源包的阶段：逐来源采信 → 合并 → 契约 → 质量 → 还原 → 切分 → 对账 → 覆盖 → 发布
+PACKAGE_STAGES = ("receive", "ingest", "merge", "contract", "quality", "restore",
+                  "allocate", "reconcile", "coverage", "publish")
+PACKAGE_STAGE_LABELS = {
+    "receive": "收件",
+    "ingest": "逐件采信",
+    "merge": "合并来源",
+    "contract": "契约",
+    "quality": "质量",
+    "restore": "还原",
+    "allocate": "切分",
+    "reconcile": "对账",
+    "coverage": "覆盖",
+    "publish": "发布",
+}
+
 # 列契约：规范列名 → 可接受的别名（GBK 导出的表头是中文）
 COLUMN_ALIASES = {
     "meter_id": ("meter_id", "表号", "电能表", "电表编号", "meter"),
@@ -82,8 +98,41 @@ SAMPLES = {
     "readings_bad_header.csv": "表头缺列",
 }
 DEFAULT_SAMPLE = "readings_dirty.csv"
+
+# 多来源包采信的终端样例：只允许按来源文件导入，不进入单文件下拉框
+PACKAGE_SAMPLES = {
+    "readings_terminal_a.csv": "终端 A · 城东台区（M0001/M0002/M0003/007）",
+    "readings_terminal_b_truncated.csv": "终端 B · 城西台区（末行截断）",
+    "readings_terminal_c_bad_header.csv": "终端 C · 表头缺列（坏来源）",
+}
 METERS_FILE = "meters.csv"
 PRICES_FILE = "prices.csv"
+
+# ---- 多来源包采信（M8）----
+# 来源快照三态：整文件可采信 / 部分可采信（坏行进隔离）/ 文件级拒绝
+SNAPSHOT_ACCEPTED = "accepted"
+SNAPSHOT_PARTIAL = "partial"
+SNAPSHOT_REJECTED = "rejected"
+SNAPSHOT_STATUSES = (SNAPSHOT_ACCEPTED, SNAPSHOT_PARTIAL, SNAPSHOT_REJECTED)
+SNAPSHOT_STATUS_LABELS = {
+    SNAPSHOT_ACCEPTED: "可采信",
+    SNAPSHOT_PARTIAL: "部分采信",
+    SNAPSHOT_REJECTED: "文件级拒绝",
+}
+
+# 来源生命周期：active 参与发布；retired 保留快照但不再参与
+SOURCE_ACTIVE = "active"
+SOURCE_RETIRED = "retired"
+
+# 表计覆盖状态：缺源文件 / 只有隔离行 / 只有一个锚点 / 已覆盖
+COVERAGE_STATUSES = ("covered", "single_reading", "quarantined_only", "missing")
+COVERAGE_LABELS = {
+    "covered": "已覆盖",
+    "single_reading": "仅一锚点",
+    "quarantined_only": "只有隔离行",
+    "missing": "缺源文件",
+}
+COVERAGE_NEEDS_ATTENTION = ("single_reading", "quarantined_only", "missing")
 
 # 单一制电价兜底（prices.csv 缺失时）
 DEFAULT_PRICES = {"TOTAL": Decimal("0.65"), "PEAK": Decimal("1.05"),

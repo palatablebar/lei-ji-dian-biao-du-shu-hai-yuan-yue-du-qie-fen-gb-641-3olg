@@ -20,7 +20,10 @@ def evaluate(records: list[dict],
                 lineno=record["lineno"], segment=record["segment"],
                 code="Q_UNKNOWN_METER", stage="quality", field="meter_id",
                 raw_value=record["meter_id"], meter_id=record["meter_id"],
-                detail="表计不在契约"))
+                detail="表计不在契约",
+                source_id=record.get("source_id"),
+                source_name=record.get("source_name"),
+                snapshot_id=record.get("snapshot_id")))
             continue
         problem = rules.check_row(record, meter)
         if problem:
@@ -28,7 +31,10 @@ def evaluate(records: list[dict],
                 lineno=record["lineno"], segment=record["segment"],
                 code=problem["code"], stage="quality", field=problem["field"],
                 raw_value=record["reading_text"], meter_id=record["meter_id"],
-                detail=problem["detail"]))
+                detail=problem["detail"],
+                source_id=record.get("source_id"),
+                source_name=record.get("source_name"),
+                snapshot_id=record.get("snapshot_id")))
             continue
         candidates.append(record)
 
@@ -38,9 +44,13 @@ def evaluate(records: list[dict],
             lineno=item["lineno"], segment=item["segment"],
             code="Q_DUPLICATE_CONFLICT", stage="quality", field="reading",
             raw_value=item["reading_text"], meter_id=item["meter_id"],
-            detail="同键取值不一致：" + " / ".join(item["_conflict_values"])))
+            detail="同键取值不一致：" + " / ".join(item["_conflict_values"]),
+            source_id=item.get("source_id"),
+            source_name=item.get("source_name"),
+            snapshot_id=item.get("snapshot_id")))
     for item in merged:
         diagnostics.append({"code": "K_DUPLICATE_IDENTICAL", "lineno": item["lineno"],
+                            "source_id": item.get("source_id"),
                             "detail": f"与第 {item['_merged_into']} 行完全相同，已合并"})
 
     kept, reversed_rows = rules.monotonic_quarantine(kept, contracts)
@@ -50,7 +60,10 @@ def evaluate(records: list[dict],
             code="Q_REVERSE_READING", stage="quality", field="reading",
             raw_value=item["reading_text"], meter_id=item["meter_id"],
             detail=(f"读数 {item['reading']} 小于第 {item['_prev_lineno']} 行的 "
-                    f"{item['_prev']}，且未达满量翻转线")))
+                    f"{item['_prev']}，且未达满量翻转线"),
+            source_id=item.get("source_id"),
+            source_name=item.get("source_name"),
+            snapshot_id=item.get("snapshot_id")))
 
     valid = [item for item in kept if item["read_type"] == "N"]
     estimate = [item for item in kept if item["read_type"] == "E"]

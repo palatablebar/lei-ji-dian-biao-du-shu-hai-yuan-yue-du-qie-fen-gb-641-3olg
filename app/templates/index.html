@@ -89,6 +89,48 @@
 
 <section class="panel">
   <div class="panel-head">
+    <h2 class="panel-title">来源与覆盖</h2>
+    <a class="link" href="/sources">来源追溯</a>
+  </div>
+  <div class="chips">
+    <span class="chip chip-info">来源 {{ source_block|length }}</span>
+    {% for item in source_block %}
+    <span class="chip chip-{{ 'bad' if item.status == 'rejected' else ('warn' if item.status == 'partial' else 'info') }}"
+          title="{{ item.source_id }}">{{ item.filename or item.label }} · {{ item.status|status }}</span>
+    {% endfor %}
+    {% for item in missing_sources %}
+    <span class="chip chip-warn">缺件 {{ item.filename }}</span>
+    {% endfor %}
+  </div>
+  {% if coverage %}
+  <p class="panel-sub mono">
+    已覆盖 {{ coverage.by_status.covered or 0 }}/{{ coverage.total }}
+    · 仅一锚点 {{ coverage.by_status.single_reading or 0 }}
+    · 只有隔离行 {{ coverage.by_status.quarantined_only or 0 }}
+    · 缺源文件 {{ coverage.by_status.missing or 0 }}
+  </p>
+  {% if gap_rows %}
+  <table class="table table-compact">
+    <thead><tr><th>表号</th><th>名称</th><th>状态</th><th>说明</th></tr></thead>
+    <tbody>
+      {% for row in gap_rows %}
+      <tr>
+        <td class="mono">{{ row.meter_id }}</td>
+        <td>{{ row.name }}</td>
+        <td><span class="badge badge-{{ 'bad' if row.status == 'missing' else 'warn' }}">{{ row.status|status }}</span></td>
+        <td class="cell-note">{{ row.detail }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-line">所有契约表计都有来源覆盖。</p>
+  {% endif %}
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-head">
     <h2 class="panel-title">最近批次</h2>
     <a class="link" href="/batches">全部批次</a>
   </div>

@@ -10,6 +10,7 @@ from ...web import Ctx, get_ctx, render
 from ..m1_ingest import service as m1_service
 from ..m2_contract import contract as contract_mod
 from ..m3_quality import quarantine as quarantine_mod
+from ..m8_package import coverage as coverage_mod
 from . import compare, resume, service
 
 router = APIRouter(tags=["M6 批次与对账"])
@@ -97,16 +98,27 @@ def page_index(request: Request, batch_id: str | None = None,
     totals: dict = {}
     reconcile = None
     quarantine: list[dict] = []
+    coverage_rows: list[dict] = []
+    coverage_summary = None
     contracts = contract_mod.load(ctx.settings)
     if batch is not None:
         totals = ctx.store.load_totals(batch["batch_id"])
         reconcile = json.loads(totals.get("reconcile_json") or "null")
         quarantine = ctx.store.load_quarantine(batch["batch_id"])
+        coverage_rows = ctx.store.load_coverage(batch["batch_id"])
+        coverage_summary = coverage_mod.summarise(coverage_rows)
+    sources = (ctx.store.load_manifest(batch["batch_id"]) or {}).get(
+        "package", {}) if batch is not None else {}
     return render(request, "index.html", page="index", page_title="作业总览",
                   batch=batch, totals=totals,
                   reconcile=compare.page_rows(reconcile),
                   balanced=None if reconcile is None else reconcile["all_balanced"],
                   qsummary=quarantine_mod.summary(quarantine),
+                  coverage=coverage_summary,
+                  gap_rows=[row for row in coverage_rows
+                            if row["status"] != "covered"],
+                  source_block=sources.get("sources") or [],
+                  missing_sources=sources.get("missing_expected_sources") or [],
                   samples=m1_service.available_samples(ctx.settings),
                   meters=contract_mod.payload(contracts),
                   swaps=[item for item in contracts.values() if item.replaced_by],

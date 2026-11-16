@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block body %}
+<section class="page-head">
+  <div>
+    <h1 class="page-title">来源采信</h1>
+    <p class="page-meta mono">
+      {% if package %}{{ package.package_id }} · 已发布 v{{ package.published_version or '—' }} · {{ package.status|status }}
+      {% else %}未建包{% endif %}
+    </p>
+  </div>
+  <div class="actions">
+    <label class="field-inline">
+      <span class="field-label">终端样例</span>
+      <select id="package-sample-select" class="select">
+        {% for item in package_samples %}
+        <option value="{{ item.name }}"{% if not item.exists %} disabled{% endif %}>{{ item.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="btn btn-ghost" id="create-package-button" type="button">建包</button>
+    <button class="btn btn-ghost" id="receive-source-button" type="button">收件</button>
+    <button class="btn btn-primary" id="publish-package-button" type="button">发布版本</button>
+  </div>
+</section>
+
+<div class="notice" id="notice" role="status" hidden></div>
+
+{% if not package %}
+<section class="empty">
+  <p class="empty-line">还没有作业包。先选一个终端样例点「建包」，再逐件收件。</p>
+  <p class="empty-line">坏来源（空文件 / 表头缺列 / 末行截断）只会被单独拒绝或部分采信，不阻断整包。</p>
+</section>
+{% else %}
+<section class="kpis" aria-label="包合计">
+  <div class="kpi"><span class="kpi-label">来源</span><span class="kpi-value mono">{{ package.sources|length }}</span></div>
+  <div class="kpi"><span class="kpi-label">缺失预期来源</span><span class="kpi-value mono">{{ package.missing_expected_sources|length }}</span></div>
+  <div class="kpi"><span class="kpi-label">已发布版本</span><span class="kpi-value mono">{{ package.published_version or '—' }}</span></div>
+  <div class="kpi"><span class="kpi-label">覆盖表计</span><span class="kpi-value mono">{{ package.coverage_summary.by_status.covered or 0 }}</span></div>
+  <div class="kpi"><span class="kpi-label">需关注</span><span class="kpi-value mono">{{ package.coverage_summary.needs_attention }}</span></div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title">来源快照</h2>
+    <span class="panel-sub mono">补件追加新快照，旧快照保留</span>
+  </div>
+  <div class="table-wrap">
+    <table class="table table-dense">
+      <thead>
+        <tr><th>来源</th><th>终端</th><th>状态</th><th>当前快照</th><th>文件</th>
+          <th class="num">行数</th><th class="num">隔离</th><th>编码</th><th>声明表计</th><th>收到</th><th>操作</th></tr>
+      </thead>
+      <tbody>
+        {% for source in package.sources %}
+        {% set cur = source.current %}
+        <tr>
+          <td class="mono">{{ source.source_id }}</td>
+          <td>{{ source.terminal or '—' }}</td>
+          <td><span class="badge badge-{{ 'ok' if source.status == 'active' else 'plain' }}">{{ source.status|status }}</span></td>
+          <td>
+            {% if cur %}
+            <span class="badge badge-{{ 'bad' if cur.status == 'rejected' else ('warn' if cur.status == 'partial' else 'ok') }}">{{ cur.status|status }}</span>
+            {% if cur.ingest_code %}<span class="chip chip-bad mono">{{ cur.ingest_code }}</span>{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td class="mono cell-raw" title="{{ cur.filename if cur else '' }}">{{ cur.filename if cur else '—' }}</td>
+          <td class="num mono">{{ cur.parsed_lines if cur else 0 }}/{{ cur.data_lines if cur else 0 }}</td>
+          <td class="num mono">{{ cur.quarantine_count if cur else 0 }}</td>
+          <td class="mono">{{ cur.encoding if cur and cur.encoding else '—' }}</td>
+          <td class="mono">{% if source.scope %}{{ source.scope|join('、') }}{% if source.scope_derived %}（按首件推定）{% endif %}{% else %}—{% endif %}</td>
+          <td class="mono">{{ (cur.received_at|localdt) if cur else '—' }}</td>
+          <td>
+            {% if source.status == 'active' %}
+            <button class="btn btn-ghost btn-sm retire-source-button" type="button"
+                    data-package="{{ package.package_id }}" data-source="{{ source.source_id }}">作废</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if package.missing_expected_sources %}
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title">未交件的预期来源</h2>
+    <span class="panel-sub mono">{{ package.missing_expected_sources|length }} 个</span>
+  </div>
+  <div class="chips">
+    {% for item in package.missing_expected_sources %}
+    <span class="chip chip-warn mono">{{ item.filename }} <b>{{ item.label }}</b></span>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title">表计覆盖</h2>
+    <span class="panel-sub mono">缺源 {{ package.coverage_summary.by_status.missing or 0 }} · 只有隔离 {{ package.coverage_summary.by_status.quarantined_only or 0 }}</span>
+  </div>
+  <div class="table-wrap">
+    <table class="table table-dense">
+      <thead><tr><th>表号</th><th>名称</th><th>状态</th><th class="num">有效</th><th class="num">估抄</th>
+        <th class="num">隔离</th><th class="num">区间</th><th>来源</th><th>说明</th></tr></thead>
+      <tbody>
+        {% for row in package.coverage %}
+        <tr>
+          <td class="mono">{{ row.meter_id }}</td>
+          <td>{{ row.name }}</td>
+          <td><span class="badge badge-{{ 'ok' if row.status == 'covered' else ('bad' if row.status == 'missing' else 'warn') }}">{{ coverage_labels.get(row.status, row.status) }}</span></td>
+          <td class="num mono">{{ row.valid_readings }}</td>
+          <td class="num mono">{{ row.estimate_readings }}</td>
+          <td class="num mono">{{ row.quarantine_readings }}</td>
+          <td class="num mono">{{ row.interval_count }}</td>
+          <td class="mono cell-raw">{{ row.source_labels|join('、') or '—' }}</td>
+          <td class="cell-note">{{ row.detail }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title">版本</h2>
+    <span class="panel-sub mono">{{ package.versions|length }} 版 · 已发布版本不可改写</span>
+  </div>
+  <div class="table-wrap">
+    <table class="table table-dense">
+      <thead><tr><th class="num">版本</th><th>批次</th><th>状态</th><th>说明</th><th class="num">来源</th>
+        <th class="num">拒绝</th><th class="num">隔离</th><th class="num">区间</th><th class="num">缺源</th><th>发布时间</th></tr></thead>
+      <tbody>
+        {% for item in package.versions|reverse %}
+        <tr>
+          <td class="num mono">v{{ item.version_no }}</td>
+          <td class="mono">{{ item.batch_id }}</td>
+          <td><span class="badge badge-{{ 'ok' if item.status == 'published' else ('plain' if item.status == 'superseded' else 'bad') }}">{{ item.status|status }}</span></td>
+          <td class="cell-note">{{ item.note or '—' }}</td>
+          <td class="num mono">{{ item.counters.sources or 0 }}</td>
+          <td class="num mono">{{ item.counters.rejected or 0 }}</td>
+          <td class="num mono">{{ item.counters.quarantine or 0 }}</td>
+          <td class="num mono">{{ item.counters.intervals or 0 }}</td>
+          <td class="num mono">{{ item.counters.missing_sources or 0 }}</td>
+          <td class="mono">{{ (item.published_at|localdt) if item.published_at else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title">作业包历史</h2>
+    <span class="panel-sub mono">{{ packages|length }} 个</span>
+  </div>
+  <table class="table table-compact">
+    <thead><tr><th>包</th><th>状态</th><th class="num">已发布</th><th class="num">最新</th><th>批次</th><th>更新时间</th></tr></thead>
+    <tbody>
+      {% for item in packages %}
+      <tr>
+        <td class="mono"><a class="link" href="/packages?package_id={{ item.package_id }}">{{ item.package_id }}</a></td>
+        <td><span class="badge badge-{{ 'ok' if item.status == 'published' else 'plain' }}">{{ item.status|status }}</span></td>
+        <td class="num mono">{{ item.published_version or '—' }}</td>
+        <td class="num mono">{{ item.latest_version }}</td>
+        <td class="mono">{{ item.published_batch_id or '—' }}</td>
+        <td class="mono">{{ (item.updated_at or item.created_at)|localdt }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="/static/app.js" type="module"></script>
+<script src="/static/package.js" type="module"></script>
+{% endblock %}

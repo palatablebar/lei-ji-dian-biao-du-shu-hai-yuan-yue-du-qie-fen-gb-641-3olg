@@ -86,6 +86,10 @@ def interpret_rows(rows: list[dict], contracts: dict[str, contract.MeterContract
             "raw": row.get("raw", ""),
             "note": coerce.normalize_text(cells.get("note")),
             "flags": flags,
+            "source_id": row.get("source_id"),
+            "source_name": row.get("source_name"),
+            "snapshot_id": row.get("snapshot_id"),
+            "source_ids": [row["source_id"]] if row.get("source_id") else [],
         })
     return records, quarantine, diagnostics
 
@@ -94,7 +98,10 @@ def _q(row: dict, code: str, detail: str, meter_id: str, field: str) -> dict:
     return {"lineno": row["lineno"], "segment": row["segment"], "code": code,
             "stage": "contract", "level": reasons.level(code), "field": field,
             "raw_value": row["cells"].get(field, ""), "meter_id": meter_id,
-            "detail": detail}
+            "detail": detail,
+            "source_id": row.get("source_id"),
+            "source_name": row.get("source_name"),
+            "snapshot_id": row.get("snapshot_id")}
 
 
 def preview(cells: dict[str, str], contracts: dict[str, contract.MeterContract]) -> dict:

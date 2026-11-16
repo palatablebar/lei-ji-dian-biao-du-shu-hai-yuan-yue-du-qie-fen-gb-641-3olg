@@ -43,7 +43,7 @@
   <div class="table-wrap">
     <table class="table table-dense" data-sortable>
       <thead>
-        <tr><th data-key="lineno">行号</th><th data-key="segment">段</th><th data-key="meter_id">表号</th>
+        <tr><th data-key="lineno">行号</th><th data-key="segment">段</th><th data-key="source_name">来源</th><th data-key="meter_id">表号</th>
           <th data-key="register">寄存器</th><th data-key="read_at">抄表时间</th>
           <th data-key="reading_text" class="num">原始读数</th><th data-key="reading_norm" class="num">折合读数</th>
           <th data-key="read_type">类型</th><th data-key="status">状态</th></tr>
@@ -53,6 +53,7 @@
         <tr>
           <td class="mono">{{ row.lineno }}</td>
           <td class="mono">{{ row.segment }}</td>
+          <td class="mono cell-raw" title="{{ row.source_id or '' }}">{{ row.source_name or '—' }}</td>
           <td class="mono">{{ row.meter_id }}</td>
           <td>{{ row.register|reg }}</td>
           <td class="mono">{{ row.read_at|localdt }}</td>
@@ -80,12 +81,13 @@
   </div>
   <div class="table-wrap">
     <table class="table table-dense" data-sortable>
-      <thead><tr><th data-key="lineno">行号</th><th data-key="code">原因码</th><th data-key="field">字段</th>
+      <thead><tr><th data-key="lineno">行号</th><th data-key="source_name">来源</th><th data-key="code">原因码</th><th data-key="field">字段</th>
         <th data-key="raw_value">原始值</th><th data-key="meter_id">表号</th><th data-key="detail">说明</th><th data-key="level">等级</th></tr></thead>
       <tbody>
         {% for row in quarantine %}
         <tr>
           <td class="mono">{{ row.lineno }}</td>
+          <td class="mono cell-raw">{{ row.source_name or '—' }}</td>
           <td class="mono">{{ row.code }}</td>
           <td>{{ row.field }}</td>
           <td class="mono cell-raw" title="{{ row.raw_value }}">{{ row.raw_value }}</td>

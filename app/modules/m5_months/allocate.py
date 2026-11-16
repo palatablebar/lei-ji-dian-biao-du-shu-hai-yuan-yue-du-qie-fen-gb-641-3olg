@@ -32,11 +32,14 @@ def allocate(intervals: list[dict],
                 "month": month, "meter_id": interval["meter_id"],
                 "register": interval["register"],
                 "usage_kwh": Decimal("0"), "exact_share": Decimal("0"),
-                "tou_adjusted": False, "sources": [],
+                "tou_adjusted": False, "sources": [], "source_ids": [],
             })
             bucket["usage_kwh"] += usage
             bucket["exact_share"] += exact_map.get(month, Decimal("0"))
             bucket["sources"].append(interval["interval_id"])
+            for ident in interval.get("source_ids") or []:
+                if ident not in bucket["source_ids"]:
+                    bucket["source_ids"].append(ident)
 
     allocations = sorted(buckets.values(),
                          key=lambda item: (item["month"], item["meter_id"], item["register"]))
@@ -78,6 +81,9 @@ def _close_components(allocations: list[dict],
     for (month, meter_id), registers in sorted(by_month.items()):
         meter = contracts[meter_id]
         if "TOTAL" not in meter.registers:
+            continue
+        # 有的月份只有分项、没有总表锚点（缺源或跨表交叠），这组无法闭合，跳过
+        if "TOTAL" not in registers:
             continue
         if not all(name in registers for name in config.TOU_REGISTERS):
             continue

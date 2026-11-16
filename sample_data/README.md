@@ -13,8 +13,18 @@
 | `readings_blank.csv` | 表头之后全是空行 |
 | `readings_bad_header.csv` | 表头缺 `register` / `read_at` |
 
+多来源包样例（`/packages` 页「终端样例」下拉框，不进入单文件下拉框）：
+
+| 文件 | 覆盖的真实问题 |
+|---|---|
+| `readings_terminal_a.csv` | 终端 A：M0001 四分项 + M0002/M0003/007，整份可采信 |
+| `readings_terminal_b_truncated.csv` | 终端 B：M0004/M0005/M0006/M0008，末行截断（部分采信） |
+| `readings_terminal_c_bad_header.csv` | 终端 C：表头缺 `register` / `read_at`，整份文件级拒绝 |
+
 `meters.csv` 是表计契约：容量、综合倍率、单位、寄存器组合、换表事件（M0004 → M0005）。
 `prices.csv` 是电价：峰 1.05 / 平 0.65 / 谷 0.32 元每 kWh。
 
 样例数值是手工设计的，期望值写死在 `tests/fixtures/expected.py`：8 只表、60 行读数、
 45 有效 + 1 估抄 + 14 隔离，区间 32 段，月度合计 4499.900 kWh，账单 3261.96 元。
+三个终端件合成一个包时是另一组数（37 数据行、23 段、3849.900 kWh），不在 `expected.py` 里，
+由 `tests/test_m8_package.py` 用结构性断言固定。

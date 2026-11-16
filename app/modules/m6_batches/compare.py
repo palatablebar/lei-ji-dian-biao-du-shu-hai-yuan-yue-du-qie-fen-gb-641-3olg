@@ -19,11 +19,21 @@ def _account(key: str, label: str, left, right, unit: str, note: str = "") -> di
 def build(*, raw_lines: int, valid: int, estimate: int, quarantine: int, blank: int,
           interval_usage: Decimal, month_usage: Decimal,
           tou_before: Decimal, tou_after: Decimal, tou_adjustments: int,
-          bill_total: Decimal, component_total: Decimal, bill_count: int) -> dict:
+          bill_total: Decimal, component_total: Decimal, bill_count: int,
+          file_level_rejects: int = 0) -> dict:
+    """四账。
+
+    `file_level_rejects` 是文件级拒绝的来源数：它们没有数据行，所以不进读数账的
+    两侧，只在说明里单列。隔离行里属于这类文件级拒绝的条目也不计入行数，
+    读数账才是「数据行 = 有效 + 估抄 + 行级隔离 + 空行」的逐行恒等式。
+    """
+    row_quarantine = quarantine - file_level_rejects
+    note = (f"有效 {valid} + 估抄 {estimate} + 隔离 {row_quarantine} + 空行 {blank}")
+    if file_level_rejects:
+        note += f"；另有 {file_level_rejects} 个来源文件级拒绝，无数据行，不计入"
     accounts = [
         _account("readings", "读数账", raw_lines,
-                 valid + estimate + quarantine + blank, "行",
-                 f"有效 {valid} + 估抄 {estimate} + 隔离 {quarantine} + 空行 {blank}"),
+                 valid + estimate + row_quarantine + blank, "行", note),
         _account("intervals", "区间账",
                  interval_usage.quantize(config.USAGE_QUANT),
                  month_usage.quantize(config.USAGE_QUANT), "kWh",

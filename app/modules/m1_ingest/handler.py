@@ -66,6 +66,9 @@ def api_readings(batch_id: str, ctx: Ctx = Depends(get_ctx)) -> dict:
             "read_at": item["read_at"], "status": item["status"],
             "reading": None if item["reading_norm"] is None
             else str(item["reading_norm"]),
+            "source_id": item.get("source_id"),
+            "source_name": item.get("source_name"),
+            "snapshot_id": item.get("snapshot_id"),
         } for item in readings],
     }
 

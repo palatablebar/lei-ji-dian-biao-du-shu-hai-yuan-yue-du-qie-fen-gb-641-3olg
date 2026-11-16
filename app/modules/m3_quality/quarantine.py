@@ -8,10 +8,14 @@ CSV_HEADER = ["原始行号", "分段", "原因码", "原因", "等级", "字段
 
 
 def build_row(*, lineno: int, segment: int, code: str, stage: str, field: str,
-              raw_value: str, meter_id: str, detail: str) -> dict:
+              raw_value: str, meter_id: str, detail: str,
+              source_id: str | None = None, source_name: str | None = None,
+              snapshot_id: str | None = None) -> dict:
     return {"lineno": lineno, "segment": segment, "code": code, "stage": stage,
             "level": reasons.level(code), "field": field, "raw_value": raw_value,
-            "meter_id": meter_id, "detail": detail}
+            "meter_id": meter_id, "detail": detail,
+            "source_id": source_id, "source_name": source_name,
+            "snapshot_id": snapshot_id}
 
 
 def distribution(quarantine: list[dict]) -> list[dict]:
@@ -61,4 +65,6 @@ def to_dict(item: dict) -> dict:
         "raw_value": item.get("raw_value"),
         "meter_id": item.get("meter_id"),
         "detail": item.get("detail"),
+        "source_id": item.get("source_id"),
+        "source_name": item.get("source_name"),
     }

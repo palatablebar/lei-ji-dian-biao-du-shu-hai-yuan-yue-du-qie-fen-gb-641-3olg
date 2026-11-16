@@ -7,13 +7,19 @@ from ... import config, reasons
 from ..m2_contract import contract as contract_mod
 
 MONTHLY_HEADER = ["月份", "表号", "寄存器", "用量kWh", "金额元", "尾差分",
-                  "调整原因"]
+                  "调整原因", "来源"]
 INTERVAL_HEADER = ["区间号", "表号", "寄存器", "起", "止", "天数", "上次读数",
-                   "本次读数", "差值", "倍率", "单位", "用量kWh", "判定", "标记"]
+                   "本次读数", "差值", "倍率", "单位", "用量kWh", "判定", "标记",
+                   "上次来源", "本次来源"]
 READING_HEADER = ["原始行号", "分段", "表号", "寄存器", "抄表时间UTC", "原始读数",
-                  "单位", "折合读数", "类型", "状态", "原因码"]
+                  "单位", "折合读数", "类型", "状态", "原因码", "来源", "来源文件"]
 QUARANTINE_HEADER = ["原始行号", "分段", "原因码", "原因", "等级", "字段", "原始值",
-                     "表号", "说明"]
+                     "表号", "说明", "来源", "来源文件"]
+
+
+def _sources_text(item: dict) -> str:
+    ids = item.get("source_ids") or ([item["source_id"]] if item.get("source_id") else [])
+    return " ".join(ids)
 
 
 def monthly_rows(allocations: list[dict], bills: list[dict],
@@ -42,6 +48,7 @@ def monthly_rows(allocations: list[dict], bills: list[dict],
             config.REGISTER_LABELS.get(item["register"], item["register"]),
             f"{item['usage_kwh']:.3f}", amount, adjust,
             "K_TOU_ADJUSTED" if item["tou_adjusted"] else "",
+            _sources_text(item),
         ])
     return rows
 
@@ -58,6 +65,8 @@ def interval_rows(intervals: list[dict]) -> list[list[str]]:
             f"{item['usage_kwh']:.3f}",
             _method_label(item["method"]),
             " ".join(item["flags"]),
+            item.get("prev_source_id") or "",
+            item.get("cur_source_id") or "",
         ])
     return rows
 
@@ -71,6 +80,7 @@ def reading_rows(readings: list[dict]) -> list[list[str]]:
             item["read_at"], item["reading_text"], item["unit_raw"] or "",
             "" if item["reading_norm"] is None else f"{Decimal(str(item['reading_norm'])):.3f}",
             item["read_type"], item["status"], item.get("code") or "",
+            _sources_text(item), item.get("source_name") or "",
         ])
     return rows
 
@@ -83,6 +93,7 @@ def quarantine_rows(quarantine: list[dict]) -> list[list[str]]:
             reasons.label(item["code"]), item["level"], item.get("field") or "",
             item.get("raw_value") or "", item.get("meter_id") or "",
             item.get("detail") or "",
+            item.get("source_id") or "", item.get("source_name") or "",
         ])
     return rows
 
